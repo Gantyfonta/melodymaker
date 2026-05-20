@@ -27,6 +27,7 @@ const tempoSelect = document.getElementById('stepsSelect');
 const waveSelect = document.getElementById('waveSelect');
 const volInput = document.getElementById('volume');
 const scaleSelect = document.getElementById('scaleSelect');
+const deleteTrackBtn = document.getElementById('deleteTrackBtn');
 const clearBtn = document.getElementById('clearBtn');
 const randomBtn = document.getElementById('randomBtn');
 const saveBtn = document.getElementById('saveBtn');
@@ -515,6 +516,20 @@ playBtn.addEventListener('click', ()=>{
 });
 
 stopBtn.addEventListener('click', stopPlaying);
+
+deleteTrackBtn.addEventListener('click', () => {
+    if (tracks.length > 1) {
+        if (confirm('Delete this track?')) {
+            tracks.splice(activeTrackIndex, 1);
+            if (activeTrackIndex >= tracks.length) activeTrackIndex = Math.max(0, tracks.length - 1);
+            waveSelect.value = tracks[activeTrackIndex].waveType;
+            renderTabs();
+            renderGrid();
+        }
+    } else {
+        alert('You must have at least one track.');
+    }
+});
 
 clearBtn.addEventListener('click',()=>{
   tracks[activeTrackIndex].grid = Array.from({length: rows}, ()=> Array(steps).fill(0));
