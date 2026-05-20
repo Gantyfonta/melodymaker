@@ -64,7 +64,7 @@ select, input[type="range"] { margin-top: 4px; background: transparent; color: #
   margin-top: 8px; /* align with grid padding */
 }
 .row-label{
-  width:36px;
+  width:42px;
   height:32px;
   display:flex;
   align-items:center;
@@ -73,6 +73,21 @@ select, input[type="range"] { margin-top: 4px; background: transparent; color: #
   font-size:11px;
   font-weight: 700;
   user-select:none;
+  box-sizing: border-box;
+}
+.white-key {
+  background: #f8fafc;
+  color: #1e293b;
+  border-radius: 4px 0 0 4px;
+}
+.black-key {
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 4px 0 0 4px;
+  width: 30px;
+  margin-left: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-right: none;
 }
 .cell{
   width: auto;
@@ -89,6 +104,15 @@ select, input[type="range"] { margin-top: 4px; background: transparent; color: #
 .cell.beat-alt { background: var(--cell-beat); }
 .cell:hover { transform: scale(1.1); z-index:10; }
 .cell.on { box-shadow: 0 2px 8px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); }
+.cell.stretch {
+  width: calc(100% + 4px) !important;
+  margin-left: -2px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  z-index: 5 !important;
+}
 .cell.playhead {
   outline: 2px solid rgba(255,255,255,0.6);
   outline-offset: -1px;
@@ -113,6 +137,30 @@ button.primary:hover{ background: #7dd3fc; }
 .grid-scroll::-webkit-scrollbar { height: 8px; }
 .grid-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 .grid-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 4px;}
+
+.track-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: 52px;
+  z-index: 10;
+  position: relative;
+  overflow-x: auto;
+}
+.track-tab {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.track-tab:hover { background: rgba(255,255,255,0.1); }
+.track-tab.active {
+  background: rgba(0,0,0,0.3);
+  color: var(--accent);
+}
 
 .modal-overlay {
   position: fixed;

@@ -1,3 +1,5 @@
+import './index.css';
+
 // Config / state
 const rows = 15;             // 2 octaves + root note
 let steps = 32;             // steps in the sequence
@@ -6,12 +8,15 @@ let isPlaying = false;
 let currentStep = 0;
 let audioCtx = null;
 let schedulerTimer = null;
-let waveType = 'piano';
 let masterGain = null;
-let gridState = []; // rows x steps booleans
 const stepDurationFactor = 1/4; // sixteenth notes
 
-// DOM
+let tracks = [];
+let nextTrackId = 1;
+let activeTrackIndex = 0;
+let pitches = [];
+
+// DOM Element bindings
 const gridEl = document.getElementById('grid');
 const rowLabelsEl = document.getElementById('rowLabels');
 const playBtn = document.getElementById('playBtn');
@@ -27,6 +32,7 @@ const randomBtn = document.getElementById('randomBtn');
 const saveBtn = document.getElementById('saveBtn');
 const loadBtn = document.getElementById('loadBtn');
 const infoEl = document.getElementById('info');
+const trackTabsEl = document.getElementById('trackTabs');
 
 // Import / Export DOM
 const exportBtn = document.getElementById('exportBtn');
@@ -42,6 +48,10 @@ const modalActionBtn = document.getElementById('modalActionBtn');
 const modalCloseBtn = document.getElementById('modalCloseBtn');
 let modalMode = 'none';
 
+function getCurrentGrid() {
+    return tracks[activeTrackIndex].grid;
+}
+
 // Utility: midi -> freq
 function midiToFreq(m){ return 440 * Math.pow(2, (m - 69)/12); }
 
@@ -56,138 +66,252 @@ const SCALES = {
 function buildPitchMap(numRows, scaleName){
   const root = 48; // C3 (so 2 octaves up is C5)
   const scale = SCALES[scaleName] || SCALES.major;
-  const pitches = [];
+  const map = [];
   let octave = 0;
   
-  // build from bottom up
-  while(pitches.length < numRows){
-    for(let s = 0; s < scale.length && pitches.length < numRows; s++){
-      pitches.push(root + scale[s] + octave*12);
+  while(map.length < numRows){
+    for(let s = 0; s < scale.length && map.length < numRows; s++){
+      map.push(root + scale[s] + octave*12);
     }
     octave++;
   }
-  // Reverse to make index 0 the highest pitch (top of grid)
-  return pitches.reverse(); 
+  return map.reverse(); 
 }
 
 function getNoteColor(midi) {
-    // Chrome Music Lab style rainbow colors
     const colors = [
-        '#e21c48', // 0 C
-        '#e9403a', // 1 C#
-        '#f26622', // 2 D
-        '#f6821f', // 3 D#
-        '#f99d1c', // 4 E
-        '#8dc63f', // 5 F
-        '#47b068', // 6 F#
-        '#00aeef', // 7 G
-        '#0084c9', // 8 G#
-        '#0054a6', // 9 A
-        '#3b368c', // 10 A#
-        '#662d91'  // 11 B
+        '#e21c48', '#e9403a', '#f26622', '#f6821f', 
+        '#f99d1c', '#8dc63f', '#47b068', '#00aeef', 
+        '#0084c9', '#0054a6', '#3b368c', '#662d91'
     ];
     return colors[Math.round(midi) % 12];
 }
 
-// initialize grid state
-function initGrid(r, c){
-  gridState = Array.from({length: r}, ()=> Array(c).fill(false));
-}
-
-// render grid
-function renderGrid(){
-  gridEl.innerHTML = '';
-  // dynamically set columns css
-  gridEl.style.gridTemplateColumns = `repeat(${steps}, minmax(32px, 1fr))`;
-  gridEl.style.gridAutoRows = '32px';
-  rowLabelsEl.innerHTML = '';
-
-  const pitches = buildPitchMap(rows, scaleSelect.value);
-  
-  // create row labels
-  for(let r=0;r<rows;r++){
-    const label = document.createElement('div');
-    label.className = 'row-label';
-    label.textContent = noteNameFromMidi(pitches[r]);
-    const color = getNoteColor(pitches[r]);
-    label.style.color = color;
-    rowLabelsEl.appendChild(label);
-  }
-
-  // create cells
-  for(let r=0;r<rows;r++){
-    const pitch = pitches[r];
-    const color = getNoteColor(pitch);
-    for(let c=0;c<steps;c++){
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.r = r;
-      cell.dataset.c = c;
-      
-      // alternate background for beat separation (groups of 2 subdivs per beat)
-      if (Math.floor(c / 2) % 2 === 1) {
-          cell.classList.add('beat-alt');
-      }
-      
-      if(gridState[r]?.[c]) {
-          cell.classList.add('on');
-          cell.style.backgroundColor = color;
-      }
-      cell.title = `${noteNameFromMidi(pitch)} (Step ${c+1})`;
-      
-      // Click logic
-      cell.addEventListener('mousedown', (e)=>{
-        const rr = +cell.dataset.r, cc = +cell.dataset.c;
-        gridState[rr][cc] = !gridState[rr][cc];
-        
-        if (gridState[rr][cc]) {
-            cell.classList.add('on');
-            cell.style.backgroundColor = color;
-            ensureAudioStarted();
-            playNoteForPitch(pitch);
-        } else {
-            cell.classList.remove('on');
-            cell.style.backgroundColor = '';
-        }
-      });
-      
-      // Dragging logic
-      cell.addEventListener('mouseenter', (e) => {
-          if (e.buttons === 1) { // 1 means primary mouse button is held down
-              const rr = +cell.dataset.r, cc = +cell.dataset.c;
-              // To avoid toggling repeatedly on enter, we just 'paint' it on
-              if (!gridState[rr][cc]) {
-                  gridState[rr][cc] = true;
-                  cell.classList.add('on');
-                  cell.style.backgroundColor = color;
-                  ensureAudioStarted();
-                  if (!isPlaying) playNoteForPitch(pitch);
-              }
-          }
-      });
-      
-      gridEl.appendChild(cell);
-    }
-  }
-  highlightPlayhead(currentStep);
-}
-
-function noteNameFromMidi(midi){
+function noteNameFromMidi(midi, includeOctave = false){
   if(!Number.isFinite(midi)) return '';
   const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const mi = Math.round(midi);
   const note = names[mi % 12];
   const octave = Math.floor(mi/12) - 1;
-  return `${note}${octave}`;
+  return includeOctave ? `${note}${octave}` : note;
 }
 
-// play a single pitch with synth engines
-function playNoteForPitch(midi){
+function initGrid(r, c){
+  if (tracks.length === 0) {
+      tracks = [{ id: nextTrackId++, waveType: 'piano', grid: [] }];
+  }
+  tracks.forEach(track => {
+      const newGrid = Array.from({length: r}, ()=> Array(c).fill(0));
+      if (track.grid && track.grid.length) {
+          for(let i=0; i<Math.min(r, track.grid.length); i++) {
+              for(let j=0; j<Math.min(c, track.grid[i].length); j++) {
+                  // value is 0 (off), 1 (attack), 2 (stretch)
+                  let val = track.grid[i][j];
+                  if (typeof val === 'boolean') val = val ? 1 : 0;
+                  newGrid[i][j] = val; 
+              }
+          }
+      }
+      track.grid = newGrid;
+  });
+}
+
+function renderTabs() {
+    trackTabsEl.innerHTML = '';
+    tracks.forEach((track, i) => {
+        const tab = document.createElement('div');
+        tab.className = `track-tab ${i === activeTrackIndex ? 'active' : ''}`;
+        tab.textContent = `Track ${track.id}`;
+        tab.onclick = () => {
+            activeTrackIndex = i;
+            waveSelect.value = tracks[i].waveType;
+            renderGrid();
+            renderTabs();
+        };
+        trackTabsEl.appendChild(tab);
+    });
+    
+    // Add track button (limit to 6 for sanity)
+    if (tracks.length < 6) {
+        const addTab = document.createElement('div');
+        addTab.className = 'track-tab';
+        addTab.textContent = '+ Add Track';
+        addTab.onclick = () => {
+            const newTrack = {
+                id: nextTrackId++,
+                waveType: 'synth',
+                grid: Array.from({length: rows}, ()=> Array(steps).fill(0))
+            };
+            tracks.push(newTrack);
+            activeTrackIndex = tracks.length - 1;
+            waveSelect.value = newTrack.waveType;
+            renderGrid();
+            renderTabs();
+        };
+        trackTabsEl.appendChild(addTab);
+    }
+}
+
+function updateCellVisual(r, c) {
+    const val = getCurrentGrid()[r][c];
+    const pitch = pitches[r];
+    const color = getNoteColor(pitch);
+    const cell = gridEl.children[r * steps + c];
+    if(!cell) return;
+    
+    cell.className = 'cell';
+    if (Math.floor(c / 2) % 2 === 1) cell.classList.add('beat-alt');
+    
+    if (val === 1) {
+       cell.classList.add('on');
+       cell.style.backgroundColor = color;
+    } else if (val === 2) {
+       cell.classList.add('on', 'stretch');
+       cell.style.backgroundColor = color;
+    } else {
+       cell.style.backgroundColor = '';
+    }
+}
+
+function renderGrid(){
+  gridEl.innerHTML = '';
+  gridEl.style.gridTemplateColumns = `repeat(${steps}, minmax(32px, 1fr))`;
+  gridEl.style.gridAutoRows = '32px';
+  rowLabelsEl.innerHTML = '';
+
+  pitches = buildPitchMap(rows, scaleSelect.value);
+  
+  // create row labels styled as piano keys
+  for(let r=0;r<rows;r++){
+    const pitch = pitches[r];
+    const isBlack = [1,3,6,8,10].includes(pitch % 12);
+    
+    const label = document.createElement('div');
+    label.className = 'row-label ' + (isBlack ? 'black-key' : 'white-key');
+    label.textContent = noteNameFromMidi(pitch, false);
+    
+    if (!isBlack) label.style.color = getNoteColor(pitch);
+    else label.style.color = '#fff';
+    
+    rowLabelsEl.appendChild(label);
+  }
+
+  // create cells container
+  for(let r=0;r<rows;r++) {
+    for(let c=0;c<steps;c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.title = `Pitch: ${noteNameFromMidi(pitches[r], true)} | Step ${c+1}`;
+      gridEl.appendChild(cell);
+    }
+  }
+
+  // Update visuals for all cells at once
+  for(let r=0;r<rows;r++) {
+      for(let c=0;c<steps;c++) {
+          updateCellVisual(r, c);
+      }
+  }
+  
+  highlightPlayhead(currentStep);
+}
+
+// Drag logic globally on the grid
+let isDragging = false;
+let dragMode = 0; // 0=none, 1=paint, 2=erase
+let dragRow = -1;
+let dragCol = -1;
+
+function getCellRC(e) {
+    const cell = e.target.closest('.cell');
+    if (!cell) return null;
+    return { r: +cell.dataset.r, c: +cell.dataset.c };
+}
+
+function clearCellAndFixRope(r, c) {
+    const grid = getCurrentGrid();
+    grid[r][c] = 0;
+    // If the next note was a stretch, we cut the rope, making it an attack.
+    if (c + 1 < steps && grid[r][c+1] === 2) {
+        grid[r][c+1] = 1;
+        updateCellVisual(r, c+1);
+    }
+}
+
+gridEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // Only process left click
+    const rc = getCellRC(e);
+    if(!rc) return;
+    
+    isDragging = true;
+    dragRow = rc.r;
+    dragCol = rc.c;
+    const grid = getCurrentGrid();
+    
+    if (grid[rc.r][rc.c] === 0 || grid[rc.r][rc.c] === 2) {
+        dragMode = 1; // paint
+        grid[rc.r][rc.c] = 1;
+        ensureAudioStarted();
+        if(!isPlaying) playNoteForPitch(pitches[rc.r], 0.25, tracks[activeTrackIndex].waveType);
+    } else {
+        dragMode = 2; // erase
+        clearCellAndFixRope(rc.r, rc.c);
+    }
+    updateCellVisual(rc.r, rc.c);
+});
+
+gridEl.addEventListener('mouseover', (e) => {
+    if (!isDragging) return;
+    const rc = getCellRC(e);
+    if (!rc) return;
+    
+    const grid = getCurrentGrid();
+    if (dragMode === 1 && rc.r === dragRow) {
+        if (rc.c > dragCol) {
+            // Dragged to the right, create stretch connection
+            for(let i = dragCol+1; i <= rc.c; i++) {
+                grid[rc.r][i] = 2; // Stretch type
+                updateCellVisual(rc.r, i);
+            }
+            dragCol = rc.c;
+        } else if (rc.c < dragCol) {
+            dragCol = rc.c; // Update anchor but don't delete automatically (it's simpler)
+        }
+    } else if (dragMode === 1 && rc.r !== dragRow) {
+        // Dragged to a new row, start a new attack point
+        if (grid[rc.r][rc.c] === 0) {
+            grid[rc.r][rc.c] = 1;
+            dragRow = rc.r;
+            dragCol = rc.c;
+            if(!isPlaying) playNoteForPitch(pitches[rc.r], 0.25, tracks[activeTrackIndex].waveType);
+        }
+    } else if (dragMode === 2) {
+        clearCellAndFixRope(rc.r, rc.c);
+    }
+    updateCellVisual(rc.r, rc.c);
+});
+
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+    dragMode = 0;
+});
+// Avoid dropping elements if cursor leaves grid boundary while active
+document.addEventListener('mouseleave', () => {
+    isDragging = false; 
+    dragMode = 0; 
+});
+
+
+function playNoteForPitch(midi, duration = 0.25, wave = 'piano'){
   if(!audioCtx) return;
   if(!Number.isFinite(midi)) return;
+  
   const freq = midiToFreq(midi);
+  const now = audioCtx.currentTime;
 
-  if (waveType === 'piano') {
+  if (wave === 'piano') {
       const osc1 = audioCtx.createOscillator();
       const osc2 = audioCtx.createOscillator();
       const gain1 = audioCtx.createGain();
@@ -196,20 +320,21 @@ function playNoteForPitch(midi){
       osc1.type = 'triangle';
       osc2.type = 'sine';
 
-      osc1.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      osc2.frequency.setValueAtTime(freq + (Math.random()*2-1), audioCtx.currentTime); 
+      osc1.frequency.setValueAtTime(freq, now);
+      osc2.frequency.setValueAtTime(freq + (Math.random()*2-1), now); 
 
-      const now = audioCtx.currentTime;
       const attack = 0.015;
-      const decay = 1.0;
+      const totalLen = Math.max(duration, attack + 0.1);
 
       gain1.gain.setValueAtTime(0, now);
       gain1.gain.linearRampToValueAtTime(1.0, now + attack);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + attack + decay);
+      gain1.gain.setValueAtTime(1.0, now + totalLen - 0.1);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + totalLen);
 
       gain2.gain.setValueAtTime(0, now);
       gain2.gain.linearRampToValueAtTime(0.5, now + attack);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + attack + decay * 0.7);
+      gain2.gain.setValueAtTime(0.5, now + totalLen - 0.1);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + totalLen);
 
       osc1.connect(gain1);
       osc2.connect(gain2);
@@ -218,38 +343,31 @@ function playNoteForPitch(midi){
 
       osc1.start(now);
       osc2.start(now);
-      osc1.stop(now + attack + decay);
-      osc2.stop(now + attack + decay);
+      osc1.stop(now + totalLen + 0.1);
+      osc2.stop(now + totalLen + 0.1);
+      
   } else {
-      // standard synth fallback
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       
-      osc.type = waveType === 'synth' ? 'square' : waveType === 'marimba' ? 'sine' : waveType; 
+      osc.type = wave === 'synth' ? 'square' : wave === 'marimba' ? 'sine' : wave; 
       
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(freq, now);
 
-      gain.gain.setValueAtTime(0, audioCtx.currentTime);
-      const now = audioCtx.currentTime;
+      gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(1.0, now + 0.01);
+      
+      // We allow stretching for marimba too if users draw it, otherwise it's short.
+      const totalLen = Math.max(duration, 0.1);
+      
+      gain.gain.setValueAtTime(1.0, now + totalLen - 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + totalLen);
       
       osc.connect(gain);
       gain.connect(masterGain);
       osc.start(now);
-      
-      if (waveType === 'marimba') {
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-          osc.stop(now + 0.35);
-      } else {
-          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-          osc.stop(now + 0.3);
-      }
+      osc.stop(now + totalLen + 0.1);
   }
-}
-
-function playNoteForRow(r){
-    const pitches = buildPitchMap(rows, scaleSelect.value);
-    playNoteForPitch(pitches[r]);
 }
 
 function stepOnce(){
@@ -257,15 +375,30 @@ function stepOnce(){
   currentStep = (currentStep + 1) % steps;
   highlightPlayhead(currentStep);
 
-  for(let r=0;r<rows;r++){
-    if(gridState[r][currentStep]) playNoteForRow(r);
-  }
+  const stepTime = (60 / bpm) * stepDurationFactor;
+
+  // play all active tracks simultaneously
+  tracks.forEach(track => {
+      const g = track.grid;
+      for (let r=0; r<rows; r++) {
+         if (g[r][currentStep] === 1) { // 1 indicates starting attack block
+             let length = 1;
+             // Count consecutive stretches
+             while (currentStep + length < steps && g[r][currentStep + length] === 2) {
+                 length++;
+             }
+             const duration = length * stepTime;
+             playNoteForPitch(pitches[r], duration, track.waveType);
+         }
+      }
+  });
 }
 
 function highlightPlayhead(col){
-  const cells = gridEl.querySelectorAll('.cell');
-  cells.forEach(cell => cell.classList.remove('playhead'));
   if(typeof col !== 'number' || col < 0) return;
+  // clean up old playheads
+  const old = gridEl.querySelectorAll('.playhead');
+  old.forEach(el => el.classList.remove('playhead'));
   
   for(let r=0;r<rows;r++){
     const idx = r*steps + col;
@@ -273,9 +406,12 @@ function highlightPlayhead(col){
     if(cell) {
         cell.classList.add('playhead');
         if (cell.classList.contains('on')) {
-            // Little bounce when hit via playhead
             cell.style.transform = 'scale(1.15)';
-            setTimeout(() => cell.style.transform = '', Math.max((60/bpm)*1000/4 - 10, 50));
+            cell.style.zIndex = '15';
+            setTimeout(() => {
+                cell.style.transform = '';
+                cell.style.zIndex = '';
+            }, Math.max((60/bpm)*1000/4 - 10, 50));
         }
     }
   }
@@ -300,7 +436,8 @@ function stopPlaying(){
   clearTimeout(schedulerTimer);
   schedulerTimer = null;
   currentStep = -1;
-  highlightPlayhead(-1);
+  const old = gridEl.querySelectorAll('.playhead');
+  old.forEach(el => el.classList.remove('playhead'));
 }
 
 function ensureAudioStarted(){
@@ -326,7 +463,9 @@ tempoSelect.addEventListener('change', (e)=>{
 });
 
 waveSelect.addEventListener('change', (e)=>{
-  waveType = e.target.value;
+  if (tracks[activeTrackIndex]) {
+      tracks[activeTrackIndex].waveType = e.target.value;
+  }
   ensureAudioStarted();
 });
 
@@ -335,7 +474,7 @@ volInput.addEventListener('input', (e)=>{
 });
 
 scaleSelect.addEventListener('change', ()=>{
-  renderGrid();
+  renderGrid();  
 });
 
 playBtn.addEventListener('click', ()=>{
@@ -353,60 +492,89 @@ playBtn.addEventListener('click', ()=>{
 stopBtn.addEventListener('click', stopPlaying);
 
 clearBtn.addEventListener('click',()=>{
-  initGrid(rows, steps);
+  tracks[activeTrackIndex].grid = Array.from({length: rows}, ()=> Array(steps).fill(0));
   renderGrid();
 });
 
 randomBtn.addEventListener('click',()=>{
-  for(let r=0;r<rows;r++){
-    for(let c=0;c<steps;c++){
-      gridState[r][c] = Math.random() < 0.06;
-    }
+  const g = getCurrentGrid();
+  for(let r=0;r<rows;r++) {
+      for(let c=0;c<steps;c++) {
+          g[r][c] = (Math.random() < 0.06) ? 1 : 0;
+      }
   }
   renderGrid();
 });
 
 saveBtn.addEventListener('click', ()=>{
   const payload = {
-    steps, bpm, waveType, scale: scaleSelect.value, grid: gridState
+    steps, bpm, scale: scaleSelect.value, tracks
   };
-  localStorage.setItem('melody_maker_v3', JSON.stringify(payload));
+  localStorage.setItem('melody_maker_v4', JSON.stringify(payload));
   playFeedback('Saved locally!');
 });
 
 loadBtn.addEventListener('click', ()=>{
-  const raw = localStorage.getItem('melody_maker_v3');
-  if(!raw){ playFeedback('No save found.'); return; }
+  loadFromData(localStorage.getItem('melody_maker_v4'));
+});
+
+function loadFromData(raw) {
+  if(!raw){ playFeedback('No save found/Invalid code.'); return; }
   try{
     const payload = JSON.parse(raw);
     if(payload.steps) steps = payload.steps;
     if(payload.bpm) { bpm = payload.bpm; tempoInput.value = bpm; bpmLabel.textContent = bpm; }
-    if(payload.waveType) waveType = payload.waveType, waveSelect.value = waveType;
     if(payload.scale) scaleSelect.value = payload.scale;
-    if(payload.grid) gridState = payload.grid;
     
-    if(!gridState || gridState.length !== rows) {
-      initGrid(rows, steps);
-    } else {
-      for(let r=0;r<rows;r++){
-        if(!gridState[r]) gridState[r] = Array(steps).fill(false);
-        else gridState[r].length = steps;
-      }
+    // Migration for v3 singular boolean grid payload -> v4 multiple integer tracks
+    if(payload.grid && !payload.tracks) {
+        const oldGrid = payload.grid;
+        const newGrid = Array.from({length: rows}, ()=> Array(steps).fill(0));
+        for(let i=0; i<Math.min(rows, oldGrid.length); i++){
+            for(let j=0; j<Math.min(steps, oldGrid[i].length); j++){
+                newGrid[i][j] = oldGrid[i][j] ? 1 : 0;
+            }
+        }
+        tracks = [{ id: 1, waveType: payload.waveType || 'piano', grid: newGrid }];
+    } else if (payload.tracks) {
+        tracks = payload.tracks;
+        // Fix grid lengths if necessary 
+        tracks.forEach(track => {
+            if(track.grid.length !== rows) {
+                const updated = Array.from({length: rows}, ()=> Array(steps).fill(0));
+                for(let i=0; i<Math.min(rows, track.grid.length); i++){
+                   if(track.grid[i]) {
+                       for(let j=0; j<Math.min(steps, track.grid[i].length); j++){
+                           updated[i][j] = track.grid[i][j] || 0;
+                       }
+                   }
+                }
+                track.grid = updated;
+            }
+        });
     }
+
     tempoSelect.value = steps;
-    scaleSelect.value = payload.scale || 'major';
+    nextTrackId = (tracks.length > 0 ? Math.max(...tracks.map(t=>t.id)) : 0) + 1;
+    activeTrackIndex = 0;
+    waveSelect.value = tracks[activeTrackIndex].waveType || 'piano';
+    
+    renderTabs();
     renderGrid();
     playFeedback('Loaded!');
-  }catch(err){
+    return true;
+  } catch(err) {
     playFeedback('Load failed.');
+    console.error(err);
+    return false;
   }
-});
+}
 
 // Import Export Modals
 exportBtn.addEventListener('click', () => {
   stopPlaying();
   const payload = {
-    steps, bpm, waveType, scale: scaleSelect.value, grid: gridState
+    steps, bpm, scale: scaleSelect.value, tracks
   };
   const b64 = btoa(JSON.stringify(payload));
   modalMode = 'export';
@@ -453,28 +621,14 @@ modalActionBtn.addEventListener('click', () => {
     const raw = modalTextarea.value.trim();
     if (!raw) return;
     try {
-      const payload = JSON.parse(atob(raw));
-      if(payload.steps) steps = payload.steps;
-      if(payload.bpm) { bpm = payload.bpm; tempoInput.value = bpm; bpmLabel.textContent = bpm; }
-      if(payload.waveType) waveType = payload.waveType, waveSelect.value = waveType;
-      if(payload.scale) scaleSelect.value = payload.scale;
-      if(payload.grid) gridState = payload.grid;
-      
-      if(!gridState || gridState.length !== rows) {
-        initGrid(rows, steps);
-      } else {
-        for(let r=0;r<rows;r++){
-          if(!gridState[r]) gridState[r] = Array(steps).fill(false);
-          else gridState[r].length = steps;
+        const decoded = atob(raw);
+        if (loadFromData(decoded)) {
+            modalOverlay.style.display = 'none';
+        } else {
+            alert('Could not decode the data completely.');
         }
-      }
-      tempoSelect.value = steps;
-      scaleSelect.value = payload.scale || 'major';
-      renderGrid();
-      modalOverlay.style.display = 'none';
-      playFeedback('Song imported successfully!');
-    } catch(err) {
-      alert('Invalid song code. Make sure you pasted the exact exported code.');
+    } catch(e) {
+        alert('Invalid code formatting.');
     }
   }
 });
@@ -486,11 +640,12 @@ function playFeedback(msg){
 
 document.addEventListener('DOMContentLoaded', () => {
     tempoSelect.value = steps;
-    waveSelect.value = waveType;
-    if(!gridState || gridState.length !== rows || gridState[0].length !== steps){
+    waveSelect.value = 'piano';
+    if(tracks.length === 0){
       initGrid(rows, steps);
     }
     currentStep = -1;
+    renderTabs();
     renderGrid();
 });
 
