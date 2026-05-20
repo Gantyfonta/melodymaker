@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Song Maker Synth</title>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Song Maker Synth">
+    <header>
+      <h1>🎵 Melody Maker</h1>
+      <div class="top-bar">
+        <div class="controls">
+          <label>Tempo <span id="bpmLabel">120</span> BPM
+            <input id="tempo" type="range" min="40" max="240" value="120">
+          </label>
+          <label>Steps
+            <select id="stepsSelect">
+              <option value="16">16</option>
+              <option value="32" selected>32</option>
+              <option value="64">64</option>
+            </select>
+          </label>
+          <label>Instrument
+            <select id="waveSelect">
+              <option value="piano" selected>Piano</option>
+              <option value="marimba">Marimba</option>
+              <option value="synth">Synth</option>
+              <option value="sine">Sine</option>
+            </select>
+          </label>
+          <label>Volume
+            <input id="volume" type="range" min="0" max="1" step="0.01" value="0.25">
+          </label>
+          <label>Scale
+            <select id="scaleSelect">
+              <option value="major" selected>Major (Default)</option>
+              <option value="minor">Minor</option>
+              <option value="chromatic">Chromatic</option>
+              <option value="pentatonic">Pentatonic</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid-wrap">
+      <div class="row-labels" id="rowLabels"></div>
+      <div class="grid-scroll">
+        <div id="grid" class="grid"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="playBtn" class="primary">Play</button>
+        <button id="stopBtn" class="small">Stop</button>
+        <button id="clearBtn" class="small">Clear</button>
+        <button id="randomBtn" class="small">Randomize</button>
+        <button id="saveBtn" class="small">Save Locally</button>
+        <button id="loadBtn" class="small">Load Locally</button>
+        <button id="exportBtn" class="small">Export</button>
+        <button id="importBtn" class="small">Import</button>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="color:var(--muted);font-size:13px">Click or drag to paint notes. Spacebar to play/pause.</div>
+        <div id="info" style="color:var(--muted);font-size:13px; font-weight:600"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import/Export Modal -->
+  <div id="modalOverlay" style="display:none;" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm px-4">
+    <div class="bg-[#1e293b] p-6 rounded-xl w-full max-w-lg border border-[rgba(255,255,255,0.1)] shadow-2xl">
+      <h2 id="modalTitle" class="text-xl font-bold mb-2 text-[#38bdf8]">Share Song</h2>
+      <p id="modalDesc" class="text-sm text-slate-400 mb-4">Copy this code to share with others, or paste a code to load a song.</p>
+      <textarea id="modalTextarea" class="w-full h-40 bg-[#0f172a] text-slate-300 p-3 rounded-lg mb-4 font-mono text-xs border border-[rgba(255,255,255,0.1)] outline-none focus:border-[#38bdf8] resize-none" placeholder="Paste song code here..."></textarea>
+      <div class="flex justify-end gap-3">
+        <button id="modalActionBtn" class="bg-[#38bdf8] hover:bg-[#7dd3fc] text-[#0f172a] font-bold py-2 px-5 rounded-lg transition-colors">Copy</button>
+        <button id="modalCloseBtn" class="bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] text-white font-medium py-2 px-5 rounded-lg transition-colors">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

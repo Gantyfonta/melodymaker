@@ -1,0 +1,8 @@
+{
+  "name": "Grid Sequencer Synth",
+  "description": "A melodic piano synth sequencer built with pure HTML, CSS, and Vanilla JS WebAudio API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
