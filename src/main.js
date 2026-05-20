@@ -31,7 +31,10 @@ const infoEl = document.getElementById('info');
 // Import / Export DOM
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
+const legendBtn = document.getElementById('legendBtn');
 const modalOverlay = document.getElementById('modalOverlay');
+const legendOverlay = document.getElementById('legendOverlay');
+const legendCloseBtn = document.getElementById('legendCloseBtn');
 const modalTitle = document.getElementById('modalTitle');
 const modalDesc = document.getElementById('modalDesc');
 const modalTextarea = document.getElementById('modalTextarea');
@@ -424,6 +427,15 @@ importBtn.addEventListener('click', () => {
   modalTextarea.readOnly = false;
   modalActionBtn.textContent = 'Load Song';
   modalOverlay.style.display = 'flex';
+});
+
+legendBtn.addEventListener('click', () => {
+  stopPlaying();
+  legendOverlay.style.display = 'flex';
+});
+
+legendCloseBtn.addEventListener('click', () => {
+  legendOverlay.style.display = 'none';
 });
 
 modalCloseBtn.addEventListener('click', () => {

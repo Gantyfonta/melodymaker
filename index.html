@@ -62,6 +62,7 @@
         <button id="loadBtn" class="small">Load Locally</button>
         <button id="exportBtn" class="small">Export</button>
         <button id="importBtn" class="small">Import</button>
+        <button id="legendBtn" class="small">Piano Legend</button>
       </div>
 
       <div style="display:flex;gap:12px;align-items:center">
@@ -80,6 +81,47 @@
       <div class="modal-actions">
         <button id="modalActionBtn" class="primary">Copy</button>
         <button id="modalCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend Modal -->
+  <div id="legendOverlay" style="display:none;" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px; text-align: center;">
+      <h2>Note Color Legend</h2>
+      <p>This shows how the grid colors map to a piano keyboard.</p>
+      
+      <div style="display:flex; justify-content:center; gap:2px; height:140px; margin: 30px 0;">
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#e21c48; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">C</div>
+          <div class="piano-key black-key" style="background:#e9403a; position:absolute; top:0; right:-16px;">C#</div>
+        </div>
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#f26622; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">D</div>
+          <div class="piano-key black-key" style="background:#f6821f; position:absolute; top:0; right:-16px;">D#</div>
+        </div>
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#f99d1c; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">E</div>
+        </div>
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#8dc63f; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">F</div>
+          <div class="piano-key black-key" style="background:#47b068; position:absolute; top:0; right:-16px;">F#</div>
+        </div>
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#00aeef; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">G</div>
+          <div class="piano-key black-key" style="background:#0084c9; position:absolute; top:0; right:-16px;">G#</div>
+        </div>
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#0054a6; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">A</div>
+          <div class="piano-key black-key" style="background:#3b368c; position:absolute; top:0; right:-16px;">A#</div>
+        </div>
+        <div style="position:relative; width:44px;">
+          <div class="piano-key" style="background:#662d91; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">B</div>
+        </div>
+      </div>
+      
+      <div class="modal-actions" style="justify-content: center;">
+        <button id="legendCloseBtn" class="primary">Got it</button>
       </div>
     </div>
   </div>
