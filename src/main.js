@@ -1,5 +1,3 @@
-import './index.css';
-
 // Config / state
 const rows = 15;             // 2 octaves + root note
 let steps = 32;             // steps in the sequence

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./src/index.css">
   <title>Song Maker Synth</title>
 </head>
 <body>
@@ -71,18 +72,18 @@
   </div>
 
   <!-- Import/Export Modal -->
-  <div id="modalOverlay" style="display:none;" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm px-4">
-    <div class="bg-[#1e293b] p-6 rounded-xl w-full max-w-lg border border-[rgba(255,255,255,0.1)] shadow-2xl">
-      <h2 id="modalTitle" class="text-xl font-bold mb-2 text-[#38bdf8]">Share Song</h2>
-      <p id="modalDesc" class="text-sm text-slate-400 mb-4">Copy this code to share with others, or paste a code to load a song.</p>
-      <textarea id="modalTextarea" class="w-full h-40 bg-[#0f172a] text-slate-300 p-3 rounded-lg mb-4 font-mono text-xs border border-[rgba(255,255,255,0.1)] outline-none focus:border-[#38bdf8] resize-none" placeholder="Paste song code here..."></textarea>
-      <div class="flex justify-end gap-3">
-        <button id="modalActionBtn" class="bg-[#38bdf8] hover:bg-[#7dd3fc] text-[#0f172a] font-bold py-2 px-5 rounded-lg transition-colors">Copy</button>
-        <button id="modalCloseBtn" class="bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] text-white font-medium py-2 px-5 rounded-lg transition-colors">Close</button>
+  <div id="modalOverlay" style="display:none;" class="modal-overlay">
+    <div class="modal-content">
+      <h2 id="modalTitle">Share Song</h2>
+      <p id="modalDesc">Copy this code to share with others, or paste a code to load a song.</p>
+      <textarea id="modalTextarea" placeholder="Paste song code here..."></textarea>
+      <div class="modal-actions">
+        <button id="modalActionBtn" class="primary">Copy</button>
+        <button id="modalCloseBtn">Close</button>
       </div>
     </div>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
