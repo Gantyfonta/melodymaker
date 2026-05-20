@@ -47,7 +47,8 @@ select, input[type="range"] { margin-top: 4px; background: transparent; color: #
 }
 .grid-scroll{
     flex:1;
-    overflow-x:auto;
+    overflow:auto;
+    max-height: calc(100vh - 280px);
     padding-bottom:10px; 
 }
 .grid{
@@ -57,15 +58,21 @@ select, input[type="range"] { margin-top: 4px; background: transparent; color: #
   padding:8px;
   border-radius:8px;
 }
+.row-labels-container {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: var(--panel);
+  padding: 8px 0;
+}
 .row-labels{
   display:flex;
   flex-direction:column;
   gap:2px;
-  margin-top: 8px; /* align with grid padding */
 }
 .row-label{
   width:42px;
-  height:32px;
+  height:24px;
   display:flex;
   align-items:center;
   justify-content:flex-end;
@@ -91,7 +98,7 @@ select, input[type="range"] { margin-top: 4px; background: transparent; color: #
 }
 .cell{
   width: auto;
-  height:32px;
+  height:24px;
   min-width: 32px;
   background:var(--cell);
   border-radius:5px;

@@ -35,9 +35,9 @@
           </label>
           <label>Scale
             <select id="scaleSelect">
-              <option value="major" selected>Major (Default)</option>
+              <option value="major">Major</option>
               <option value="minor">Minor</option>
-              <option value="chromatic">Chromatic</option>
+              <option value="chromatic" selected>Chromatic</option>
               <option value="pentatonic">Pentatonic</option>
             </select>
           </label>
@@ -47,9 +47,13 @@
 
     <div class="track-tabs" id="trackTabs"></div>
     <div class="grid-wrap">
-      <div class="row-labels" id="rowLabels"></div>
       <div class="grid-scroll">
-        <div id="grid" class="grid"></div>
+        <div style="display:flex; gap:8px;">
+          <div class="row-labels-container">
+            <div class="row-labels" id="rowLabels"></div>
+          </div>
+          <div id="grid" class="grid"></div>
+        </div>
       </div>
     </div>
 

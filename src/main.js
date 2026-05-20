@@ -1,7 +1,7 @@
 import './index.css';
 
 // Config / state
-const rows = 15;             // 2 octaves + root note
+const rows = 61;             // 61 keys (C2 - C7)
 let steps = 32;             // steps in the sequence
 let bpm = 120;
 let isPlaying = false;
@@ -64,8 +64,8 @@ const SCALES = {
 };
 
 function buildPitchMap(numRows, scaleName){
-  const root = 48; // C3 (so 2 octaves up is C5)
-  const scale = SCALES[scaleName] || SCALES.major;
+  const root = 36; // C2
+  const scale = SCALES[scaleName] || SCALES.chromatic;
   const map = [];
   let octave = 0;
   
@@ -121,8 +121,33 @@ function renderTabs() {
     tracks.forEach((track, i) => {
         const tab = document.createElement('div');
         tab.className = `track-tab ${i === activeTrackIndex ? 'active' : ''}`;
-        tab.textContent = `Track ${track.id}`;
-        tab.onclick = () => {
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = `Track ${track.id}`;
+        tab.appendChild(titleSpan);
+
+        if (tracks.length > 1) {
+            const delBtn = document.createElement('span');
+            delBtn.innerHTML = '&times;';
+            delBtn.style.color = '#ef4444';
+            delBtn.style.marginLeft = '8px';
+            delBtn.style.fontSize = '16px';
+            delBtn.style.lineHeight = '1';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm('Delete this track?')) {
+                    tracks.splice(i, 1);
+                    if (activeTrackIndex >= tracks.length) activeTrackIndex = Math.max(0, tracks.length - 1);
+                    waveSelect.value = tracks[activeTrackIndex].waveType;
+                    renderTabs();
+                    renderGrid();
+                }
+            };
+            tab.appendChild(delBtn);
+        }
+
+        tab.onclick = (e) => {
+            if (e.target.tagName.toLowerCase() === 'span' && e.target.style.color === 'rgb(239, 68, 68)') return;
             activeTrackIndex = i;
             waveSelect.value = tracks[i].waveType;
             renderGrid();
@@ -176,7 +201,7 @@ function updateCellVisual(r, c) {
 function renderGrid(){
   gridEl.innerHTML = '';
   gridEl.style.gridTemplateColumns = `repeat(${steps}, minmax(32px, 1fr))`;
-  gridEl.style.gridAutoRows = '32px';
+  gridEl.style.gridAutoRows = '24px';
   rowLabelsEl.innerHTML = '';
 
   pitches = buildPitchMap(rows, scaleSelect.value);
@@ -641,6 +666,7 @@ function playFeedback(msg){
 document.addEventListener('DOMContentLoaded', () => {
     tempoSelect.value = steps;
     waveSelect.value = 'piano';
+    scaleSelect.value = 'chromatic';
     if(tracks.length === 0){
       initGrid(rows, steps);
     }
