@@ -1,5 +1,3 @@
-import './index.css';
-
 // Config / state
 const rows = 61;             // 61 keys (C2 - C7)
 let steps = 32;             // steps in the sequence
